@@ -16,13 +16,21 @@ interface MovieFormDialogProps {
 
 export function MovieFormDialog({ open, onClose, onSave, movie, isDarkMode }: MovieFormDialogProps) {
   const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    thumbnail: "",
-    duration: "",
-    year: new Date().getFullYear(),
+    titre: "",
+    synopsis: "",
+    dateSortie: "",
+    sousTitre: "",
+    typeFilm: "long-metrage",
+    muxAssetId: "",
+    muxPlaybackId: "",
+    duree: "",
+    miniature: "",
     genre: "",
-    rating: "",
+    realisateur: "",
+    acteurs: "",
+    pays: "",
+    langue: "",
+    classification: "",
   });
 
   useEffect(() => {

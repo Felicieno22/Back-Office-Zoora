@@ -1,4 +1,4 @@
-import { Film, Tv, CheckCircle2, Users, UserCog, Wrench, BarChart3, Settings, LogOut, Menu, X, Home } from 'lucide-react';
+import { Film, Tv, CheckCircle2, Users, UserCog, Wrench, BarChart3, Settings, LogOut, Menu, X, Home, Tags, History, Image } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 
@@ -43,8 +43,18 @@ export function NewSidebar({ activeTab, onTabChange, isDarkMode, isOpen, onClose
       subItems: [
         { id: 'series-create', label: 'Créer une série' },
         { id: 'series-list', label: 'Liste des séries' },
-        { id: 'series-dashboard', label: 'Dashboard séries' }
+        { id: 'series-dashboard', label: 'Dashboard séries' },
+        { id: 'saisons-create', label: 'Créer une saison' },
+        { id: 'saisons-list', label: 'Liste des saisons' },
+        { id: 'episodes-create', label: 'Créer un épisode' },
+        { id: 'episodes-list', label: 'Liste des épisodes' }
       ]
+    },
+    {
+      id: 'genres',
+      label: 'Genres',
+      icon: Tags,
+      subItems: []
     },
     {
       id: 'validation',
@@ -62,15 +72,22 @@ export function NewSidebar({ activeTab, onTabChange, isDarkMode, isOpen, onClose
     },
     {
       id: 'crew',
-      label: 'Équipages',
+      label: 'Production',
       icon: UserCog,
-      subItems: []
-    },
-    {
-      id: 'equipment',
-      label: 'Matériel',
-      icon: Wrench,
-      subItems: []
+      subItems: [
+        { id: 'crew', label: 'Équipage & Casting' },
+        { id: 'crew-create', label: 'Créer personne' },
+        { id: 'participation-list', label: 'Liste participations' },
+        { id: 'participation-create', label: 'Créer participation' },
+        { id: 'equipment', label: 'Matériel' },
+        { id: 'material-type-create', label: 'Créer type matériel' },
+        { id: 'material-create', label: 'Créer matériel' },
+        { id: 'material-used-create', label: 'Utiliser matériel' },
+        { id: 'material-used-list', label: 'Liste matériel utilisé' },
+        { id: 'subtitles', label: 'Sous-titres' },
+        { id: 'subtitles-create', label: 'Créer sous-titrage' },
+        { id: 'subtitles-list', label: 'Liste sous-titrages' }
+      ]
     },
     {
       id: 'analytics',
@@ -79,10 +96,22 @@ export function NewSidebar({ activeTab, onTabChange, isDarkMode, isOpen, onClose
       subItems: []
     },
     {
+      id: 'carrousels',
+      label: 'Carrousels',
+      icon: Image,
+      subItems: [
+        { id: 'carrousels-list', label: 'Liste des carrousels' }
+      ]
+    },
+    {
       id: 'settings',
-      label: 'Paramètres',
+      label: 'Paramètres & Admin',
       icon: Settings,
-      subItems: []
+      subItems: [
+        { id: 'settings', label: 'Général' },
+        { id: 'logs', label: "Journal d'audit" },
+        { id: 'validations', label: 'Validations en attente' }
+      ]
     }
   ];
 
@@ -95,7 +124,7 @@ export function NewSidebar({ activeTab, onTabChange, isDarkMode, isOpen, onClose
     <>
       {/* Mobile Overlay */}
       {isOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={onClose}
         />
@@ -121,9 +150,9 @@ export function NewSidebar({ activeTab, onTabChange, isDarkMode, isOpen, onClose
                   ZOORA
                 </span>
               </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="lg:hidden"
                 onClick={onClose}
               >
@@ -137,7 +166,7 @@ export function NewSidebar({ activeTab, onTabChange, isDarkMode, isOpen, onClose
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
                 <span className="text-white">
-                  {user?.name.charAt(0).toUpperCase()}
+                  {user?.name?.charAt(0).toUpperCase()}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
@@ -168,9 +197,11 @@ export function NewSidebar({ activeTab, onTabChange, isDarkMode, isOpen, onClose
                     }}
                     className={`
                       w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors
-                      ${activeTab === item.id || activeTab.startsWith(item.id + '-')
-                        ? isDarkMode 
-                          ? 'bg-blue-600 text-white' 
+                      ${activeTab === item.id || 
+                         (item.subItems.some(sub => sub.id === activeTab)) ||
+                         (item.id === 'series' && (activeTab.startsWith('saisons-') || activeTab.startsWith('episodes-')))
+                        ? isDarkMode
+                          ? 'bg-blue-600 text-white'
                           : 'bg-blue-500 text-white'
                         : isDarkMode
                           ? 'text-gray-400 hover:bg-slate-900 hover:text-white'
@@ -181,9 +212,13 @@ export function NewSidebar({ activeTab, onTabChange, isDarkMode, isOpen, onClose
                     <item.icon className="w-5 h-5" />
                     <span>{item.label}</span>
                   </button>
-                  
+
                   {/* Sub Items */}
-                  {item.subItems.length > 0 && activeTab.startsWith(item.id) && (
+                  {item.subItems.length > 0 && (
+                    activeTab === item.id || 
+                    item.subItems.some(sub => sub.id === activeTab) ||
+                    (item.id === 'series' && (activeTab.startsWith('saisons-') || activeTab.startsWith('episodes-')))
+                  ) && (
                     <div className="ml-4 mt-1 space-y-1">
                       {item.subItems.map((subItem) => (
                         <button

@@ -1,9 +1,12 @@
-import { Save, Globe, Bell, Shield, Database, Mail, Palette, Users } from "lucide-react";
+import React from 'react';
+import { Save, Globe, Bell, Shield, Database, Mail, Palette, Users, Settings } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
+import { PageContainer, SectionCard } from './shared/SharedLayout';
+import { PageHeader } from './shared/PageHeader';
 
 interface SettingsViewProps {
   isDarkMode: boolean;
@@ -11,13 +14,13 @@ interface SettingsViewProps {
 
 export function SettingsView({ isDarkMode }: SettingsViewProps) {
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className={isDarkMode ? 'text-white' : 'text-gray-900'}>Paramètres</h2>
-        <p className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
-          Configuration de la plateforme ZOORA
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Paramètres"
+        subtitle="Configuration de la plateforme ZOORA"
+        icon={Settings}
+        isDarkMode={isDarkMode}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Paramètres Généraux */}
@@ -58,9 +61,8 @@ export function SettingsView({ isDarkMode }: SettingsViewProps) {
               </Label>
               <select
                 id="language"
-                className={`flex h-10 w-full rounded-md border px-3 py-2 text-sm ${
-                  isDarkMode ? 'border-gray-700 bg-gray-800 text-white' : 'border-gray-300 bg-white text-gray-900'
-                }`}
+                className={`flex h-10 w-full rounded-md border px-3 py-2 text-sm ${isDarkMode ? 'border-gray-700 bg-gray-800 text-white' : 'border-gray-300 bg-white text-gray-900'
+                  }`}
               >
                 <option value="fr">Français</option>
                 <option value="en">English</option>
@@ -218,9 +220,8 @@ export function SettingsView({ isDarkMode }: SettingsViewProps) {
                 </Label>
                 <select
                   id="smtpEncryption"
-                  className={`flex h-10 w-full rounded-md border px-3 py-2 text-sm ${
-                    isDarkMode ? 'border-gray-700 bg-gray-800 text-white' : 'border-gray-300 bg-white text-gray-900'
-                  }`}
+                  className={`flex h-10 w-full rounded-md border px-3 py-2 text-sm ${isDarkMode ? 'border-gray-700 bg-gray-800 text-white' : 'border-gray-300 bg-white text-gray-900'
+                    }`}
                 >
                   <option value="tls">TLS</option>
                   <option value="ssl">SSL</option>
@@ -403,6 +404,6 @@ export function SettingsView({ isDarkMode }: SettingsViewProps) {
           Enregistrer les modifications
         </Button>
       </div>
-    </div>
+    </PageContainer>
   );
 }

@@ -1,12 +1,16 @@
-import { useState } from 'react';
-import { Button } from '../../components/ui/button';
+import React, { useEffect, useState } from 'react';
+import { Loader2, CheckCircle2, XCircle, Filter, Search, Eye, Check, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { Card } from '../../components/ui/card';
+import { apiRequest, getValidations } from '../../utils/api';
 import { Input } from '../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { Badge } from '../../components/ui/badge';
-import { CheckCircle2, XCircle, Search, Filter, Eye } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
-import { Card } from '../../components/ui/card';
+import { ThemedCard } from '../../components/ui/ThemedCard';
+import { ThemedButton } from '../../components/ui/ThemedButton';
+import { ThemedField } from '../../components/ui/ThemedField';
+import { ThemedIcon } from '../../components/ui/ThemedIcon';
 
 interface ValidationListProps {
   isDarkMode: boolean;
@@ -67,45 +71,85 @@ const mockValidationItems = [
 ];
 
 export function ValidationList({ isDarkMode }: ValidationListProps) {
-  const [items, setItems] = useState(mockValidationItems);
+  const [items, setItems] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [genreFilter, setGenreFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
 
+  useEffect(() => {
+    fetchPendingItems();
+  }, []);
+
+  const fetchPendingItems = async () => {
+    setIsLoading(true);
+    try {
+      // getValidations garantit un tableau
+      const data = await getValidations({ statut: 'en_attente' });
+      // Backend returns a list of contents with specific fields
+      const transformed = data.map((item: any) => ({
+        id: item.id || item.idContenu.toString(),
+        type: item.estSerie ? 'Série' : 'Film',
+        title: item.titre,
+        genre: item.genre || 'N/A',
+        submittedBy: item.soumisPar || 'System',
+        submittedDate: item.dateAjout || new Date().toISOString(),
+        status: 'En attente',
+        thumbnail: item.thumbnail || 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=300'
+      }));
+      setItems(transformed);
+    } catch (error) {
+      console.error('Failed to fetch pending items:', error);
+      toast.error('Erreur lors du chargement des validations');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const filteredItems = items.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.submittedBy.toLowerCase().includes(searchTerm.toLowerCase());
+      item.submittedBy.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesGenre = genreFilter === 'all' || item.genre === genreFilter;
     const matchesType = typeFilter === 'all' || item.type === typeFilter;
-    
+
     // Date filter
     let matchesDate = true;
     if (dateFilter !== 'all') {
       const itemDate = new Date(item.submittedDate);
       const today = new Date();
       const daysDiff = Math.floor((today.getTime() - itemDate.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       if (dateFilter === 'today') matchesDate = daysDiff === 0;
       else if (dateFilter === 'week') matchesDate = daysDiff <= 7;
       else if (dateFilter === 'month') matchesDate = daysDiff <= 30;
     }
-    
+
     return matchesSearch && matchesGenre && matchesDate && matchesType;
   });
 
-  const handleApprove = (id: string) => {
-    setItems(items.map(item => 
-      item.id === id ? { ...item, status: 'Approuvé' } : item
-    ));
-    toast.success('Contenu approuvé avec succès');
+  const handleApprove = async (id: string) => {
+    const toastId = toast.loading("Approbation en cours...");
+    try {
+      await apiRequest(`/api/validation/approve/${id}`, { method: 'POST' });
+      setItems(items.filter(item => item.id !== id));
+      toast.success('Contenu approuvé avec succès', { id: toastId });
+    } catch (error) {
+      console.error('Approve failed:', error);
+      toast.error('Erreur lors de l\'approbation', { id: toastId });
+    }
   };
 
-  const handleReject = (id: string) => {
-    setItems(items.map(item => 
-      item.id === id ? { ...item, status: 'Rejeté' } : item
-    ));
-    toast.error('Contenu rejeté');
+  const handleReject = async (id: string) => {
+    const toastId = toast.loading("Rejet en cours...");
+    try {
+      await apiRequest(`/api/validation/reject/${id}`, { method: 'POST' });
+      setItems(items.filter(item => item.id !== id));
+      toast.error('Contenu rejeté', { id: toastId });
+    } catch (error) {
+      console.error('Reject failed:', error);
+      toast.error('Erreur lors du rejet', { id: toastId });
+    }
   };
 
   const genres = ['all', ...Array.from(new Set(items.map(i => i.genre)))];
@@ -116,9 +160,13 @@ export function ValidationList({ isDarkMode }: ValidationListProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className={`p-3 rounded-xl ${isDarkMode ? 'bg-orange-600' : 'bg-orange-500'}`}>
-            <CheckCircle2 className="w-6 h-6 text-white" />
-          </div>
+          <ThemedIcon 
+            moduleName="validation" 
+            icon={CheckCircle2} 
+            size="lg" 
+            variant="gradient"
+            useHover={true}
+          />
           <div>
             <h2 className={`text-2xl ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               Validation Admin
@@ -133,60 +181,83 @@ export function ValidationList({ isDarkMode }: ValidationListProps) {
         </Badge>
       </div>
 
-      <Card className={`p-4 ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+      <ThemedCard 
+        moduleName="validation" 
+        className="p-4"
+        hoverable={true}
+        useAdvancedHover={true}
+      >
         <div className="flex items-center gap-2 mb-4">
-          <Filter className={`w-4 h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} />
+          <ThemedIcon 
+            moduleName="validation" 
+            icon={Filter} 
+            size="sm" 
+            variant="gradient"
+            useHover={false}
+          />
           <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
             Filtres
           </span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="relative">
-            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-            <Input
-              placeholder="Rechercher..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className={`pl-10 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : ''}`}
-            />
-          </div>
-          
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className={isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : ''}>
-              <SelectValue placeholder="Type" />
-            </SelectTrigger>
-            <SelectContent className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
-              <SelectItem value="all">Tous les types</SelectItem>
-              <SelectItem value="Film">Films</SelectItem>
-              <SelectItem value="Série">Séries</SelectItem>
-            </SelectContent>
-          </Select>
+          <ThemedField
+            moduleName="validation"
+            label=""
+            type="text"
+            placeholder="Rechercher..."
+            value={searchTerm}
+            onChange={(value: string) => setSearchTerm(value)}
+            icon={Search}
+            useAdvancedFocus={true}
+            useModernBorder={true}
+          />
 
-          <Select value={genreFilter} onValueChange={setGenreFilter}>
-            <SelectTrigger className={isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : ''}>
-              <SelectValue placeholder="Genre" />
-            </SelectTrigger>
-            <SelectContent className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
-              <SelectItem value="all">Tous les genres</SelectItem>
-              {genres.filter(g => g !== 'all').map(genre => (
-                <SelectItem key={genre} value={genre}>{genre}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <ThemedField
+            moduleName="validation"
+            label="Type"
+            type="select"
+            value={typeFilter}
+            onChange={(value: string) => setTypeFilter(value)}
+            options={[
+              { value: 'all', label: 'Tous les types' },
+              { value: 'Film', label: 'Films' },
+              { value: 'Série', label: 'Séries' }
+            ]}
+            useAdvancedFocus={true}
+            useModernBorder={true}
+          />
 
-          <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className={isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : ''}>
-              <SelectValue placeholder="Date" />
-            </SelectTrigger>
-            <SelectContent className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
-              <SelectItem value="all">Toutes les dates</SelectItem>
-              <SelectItem value="today">Aujourd'hui</SelectItem>
-              <SelectItem value="week">Cette semaine</SelectItem>
-              <SelectItem value="month">Ce mois</SelectItem>
-            </SelectContent>
-          </Select>
+          <ThemedField
+            moduleName="validation"
+            label="Genre"
+            type="select"
+            value={genreFilter}
+            onChange={(value: string) => setGenreFilter(value)}
+            options={[
+              { value: 'all', label: 'Tous les genres' },
+              ...genres.filter(g => g !== 'all').map(genre => ({ value: genre, label: genre }))
+            ]}
+            useAdvancedFocus={true}
+            useModernBorder={true}
+          />
+
+          <ThemedField
+            moduleName="validation"
+            label="Date"
+            type="select"
+            value={dateFilter}
+            onChange={(value: string) => setDateFilter(value)}
+            options={[
+              { value: 'all', label: 'Toutes les dates' },
+              { value: 'today', label: 'Aujourd\'hui' },
+              { value: 'week', label: 'Cette semaine' },
+              { value: 'month', label: 'Ce mois' }
+            ]}
+            useAdvancedFocus={true}
+            useModernBorder={true}
+          />
         </div>
-      </Card>
+      </ThemedCard>
 
       <div className={`rounded-lg border overflow-hidden ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
         <Table>
@@ -203,7 +274,16 @@ export function ValidationList({ isDarkMode }: ValidationListProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredItems.length === 0 ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-12">
+                  <div className="flex justify-center items-center gap-2">
+                    <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+                    <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Chargement...</span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : filteredItems.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-8">
                   <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
@@ -213,21 +293,21 @@ export function ValidationList({ isDarkMode }: ValidationListProps) {
               </TableRow>
             ) : (
               filteredItems.map((item) => (
-                <TableRow 
-                  key={item.id} 
+                <TableRow
+                  key={item.id}
                   className={isDarkMode ? 'border-gray-800 hover:bg-gray-800/30' : 'hover:bg-gray-50'}
                 >
                   <TableCell>
-                    <img 
-                      src={item.thumbnail} 
+                    <img
+                      src={item.thumbnail}
                       alt={item.title}
                       className="w-12 h-16 object-cover rounded"
                     />
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary" className={
-                      item.type === 'Film' 
-                        ? 'bg-blue-600/20 text-blue-400' 
+                      item.type === 'Film'
+                        ? 'bg-blue-600/20 text-blue-400'
                         : 'bg-purple-600/20 text-purple-400'
                     }>
                       {item.type}
@@ -247,42 +327,54 @@ export function ValidationList({ isDarkMode }: ValidationListProps) {
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary" className={
-                      item.status === 'En attente' 
+                      item.status === 'En attente'
                         ? 'bg-yellow-600/20 text-yellow-400'
                         : item.status === 'Approuvé'
-                        ? 'bg-green-600/20 text-green-400'
-                        : 'bg-red-600/20 text-red-400'
+                          ? 'bg-green-600/20 text-green-400'
+                          : 'bg-red-600/20 text-red-400'
                     }>
                       {item.status}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                      <Button 
-                        variant="ghost" 
+                      <ThemedButton
+                        moduleName="validation"
+                        variant="secondary"
                         size="sm"
-                        className={isDarkMode ? 'hover:bg-gray-800 text-gray-400' : ''}
+                        className="h-8 w-8 p-0"
+                        useGradient={true}
+                        useHoverScale={true}
+                        useAdvancedShadow={true}
                       >
                         <Eye className="w-4 h-4" />
-                      </Button>
+                      </ThemedButton>
                       {item.status === 'En attente' && (
                         <>
-                          <Button 
-                            variant="ghost" 
+                          <ThemedButton
+                            moduleName="validation"
+                            variant="success"
                             size="sm"
                             onClick={() => handleApprove(item.id)}
-                            className={isDarkMode ? 'hover:bg-gray-800 text-green-400' : 'text-green-600'}
+                            className="h-8 w-8 p-0"
+                            useGradient={true}
+                            useHoverScale={true}
+                            useAdvancedShadow={true}
                           >
-                            <CheckCircle2 className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
+                            <Check className="w-4 h-4" />
+                          </ThemedButton>
+                          <ThemedButton
+                            moduleName="validation"
+                            variant="error"
                             size="sm"
                             onClick={() => handleReject(item.id)}
-                            className={isDarkMode ? 'hover:bg-gray-800 text-red-400' : 'text-red-600'}
+                            className="h-8 w-8 p-0"
+                            useGradient={true}
+                            useHoverScale={true}
+                            useAdvancedShadow={true}
                           >
-                            <XCircle className="w-4 h-4" />
-                          </Button>
+                            <X className="w-4 h-4" />
+                          </ThemedButton>
                         </>
                       )}
                     </div>

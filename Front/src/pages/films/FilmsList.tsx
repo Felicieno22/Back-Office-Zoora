@@ -1,201 +1,362 @@
-import { useState } from 'react';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Badge } from '../../components/ui/badge';
-import { Film, Search, Edit, Trash2, Eye } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '../../components/ui/alert-dialog';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  Film, Search, Edit, Trash2, Eye, Loader2, 
+  Plus, Calendar, Shield, Activity, TrendingUp, FileText, AlignLeft, Globe 
+} from 'lucide-react';
+import { toast } from 'sonner';
 
-interface FilmsListProps {
-  isDarkMode: boolean;
-  movies: any[];
-  onDeleteMovie: (id: string) => void;
-}
+import { mapBackendFilmsToFrontend, FrontendMovie } from '../../utils/filmMappers';
+import { ThemedCard } from "../../components/ui/ThemedCard";
+import { ThemedButton } from "../../components/ui/ThemedButton";
+import { ThemedField } from "../../components/ui/ThemedField";
+import { ThemedIcon } from "../../components/ui/ThemedIcon";
+import { Card, CardContent } from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
+import { Badge } from "../../components/ui/badge";
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../components/ui/alert-dialog";
+import { apiRequest, getFilms } from "../../utils/api";
+import { dropdownDataService, useConstantData, Genre } from '../../services/dropdownDataService';
 
-export function FilmsList({ isDarkMode, movies, onDeleteMovie }: FilmsListProps) {
+export function FilmsList({ isDarkMode = false }: { isDarkMode?: boolean }) {
+  const navigate = useNavigate();
+  
+  // États de données
+  const [movies, setMovies] = useState<FrontendMovie[]>([]);
+  const [stats, setStats] = useState<{ total: number; published: number; recent: number } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Filtres
   const [searchTerm, setSearchTerm] = useState('');
   const [genreFilter, setGenreFilter] = useState('all');
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const filteredMovies = movies.filter(movie => {
-    const matchesSearch = movie.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         movie.director?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesGenre = genreFilter === 'all' || movie.genre === genreFilter;
-    return matchesSearch && matchesGenre;
-  });
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
-  const handleDelete = () => {
-    if (deleteId) {
-      onDeleteMovie(deleteId);
-      toast.success('Film supprimé avec succès');
-      setDeleteId(null);
+  const { data: genres } = useConstantData<Genre>(() => dropdownDataService.getGenres());
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  const loadInitialData = async () => {
+    setIsLoading(true);
+    try {
+      // Appels parallèles : Liste + Stats
+      const [filmsData, statsData] = await Promise.all([
+        getFilms(),
+        apiRequest('/api/films/stats', { method: 'GET' }).catch(() => null) // Fallback si stats non implémenté
+      ]);
+
+      // Plus besoin de vérification - getFilms garantit un tableau
+      const backendFilms = filmsData;
+      setMovies(mapBackendFilmsToFrontend(backendFilms));
+      if (statsData) setStats(statsData);
+      
+    } catch (error) {
+      toast.error('Erreur lors du chargement des données');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const genres = ['all', ...Array.from(new Set(movies.map(m => m.genre)))];
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await apiRequest(`/api/films/${deleteId}`, { method: 'DELETE' });
+      setMovies(prev => prev.filter(m => m.id !== deleteId));
+      toast.success('Film supprimé avec succès');
+      setDeleteId(null);
+    } catch (error) {
+      toast.error('Erreur lors de la suppression');
+    }
+  };
+
+  const filteredMovies = movies
+    .filter(m => (m.titre || "").toLowerCase().includes(searchTerm.toLowerCase()))
+    .filter(m => genreFilter === 'all' || m.genre === genreFilter);
+
+  const paginatedMovies = filteredMovies.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.ceil(filteredMovies.length / itemsPerPage);
+
+  if (isLoading) return (
+    <div className="flex flex-col items-center justify-center h-64 gap-4">
+      <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+      <p className="text-sm text-muted-foreground animate-pulse">Chargement du catalogue...</p>
+    </div>
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className={`p-3 rounded-xl ${isDarkMode ? 'bg-blue-600' : 'bg-blue-500'}`}>
-          <Film className="w-6 h-6 text-white" />
-        </div>
+    <div className="space-y-8 p-4 md:p-8">
+      {/* 1. HEADER & STATS */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className={`text-2xl ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            Liste des films
-          </h2>
-          <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
-            {filteredMovies.length} film(s) trouvé(s)
-          </p>
+          <h1 className={`text-3xl font-extrabold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Gestion des Films
+          </h1>
+          <p className="text-muted-foreground text-sm">Administrez les contenus de la plateforme Zoora</p>
         </div>
+        <ThemedButton 
+          moduleName="films" 
+          onClick={() => navigate('/admin/films/create')} 
+          variant="primary"
+          useGradient={true}
+          useHoverScale={true}
+          useAdvancedShadow={true}
+        >
+          <Plus className="mr-2 h-4 w-4" /> Nouveau Film
+        </ThemedButton>
       </div>
 
-      <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'}`}>
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-            <Input
-              placeholder="Rechercher un film..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className={`pl-10 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : ''}`}
+      {/* Cartes Stats rapides */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <ThemedCard 
+          moduleName="films" 
+          padding="md"
+          hoverable={true}
+          useAdvancedHover={true}
+        >
+          <div className="flex items-center gap-4">
+            <ThemedIcon 
+              moduleName="films" 
+              icon={Film} 
+              size="md" 
+              variant="gradient"
+              useHover={true}
             />
+            <div>
+              <p className="text-xs text-muted-foreground uppercase font-bold tracking-tighter">Total</p>
+              <p className="text-2xl font-black">{stats?.total || movies.length}</p>
+            </div>
           </div>
-          <Select value={genreFilter} onValueChange={setGenreFilter}>
-            <SelectTrigger className={`w-full md:w-48 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : ''}`}>
-              <SelectValue placeholder="Tous les genres" />
-            </SelectTrigger>
-            <SelectContent className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
-              <SelectItem value="all">Tous les genres</SelectItem>
-              {genres.filter(g => g !== 'all').map(genre => (
-                <SelectItem key={genre} value={genre}>{genre}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        </ThemedCard>
+        <ThemedCard 
+          moduleName="films" 
+          padding="md"
+          hoverable={true}
+          useAdvancedHover={true}
+        >
+          <div className="flex items-center gap-4">
+            <ThemedIcon 
+              moduleName="films" 
+              icon={TrendingUp} 
+              size="md" 
+              variant="gradient"
+              useHover={true}
+            />
+            <div>
+              <p className="text-xs text-muted-foreground uppercase font-bold tracking-tighter">Sorties récentes</p>
+              <p className="text-2xl font-black">{stats?.recent || 0}</p>
+            </div>
+          </div>
+        </ThemedCard>
+        <ThemedCard 
+          moduleName="films" 
+          padding="md"
+          hoverable={true}
+          useAdvancedHover={true}
+        >
+          <div className="flex items-center gap-4">
+            <ThemedIcon 
+              moduleName="films" 
+              icon={Shield} 
+              size="md" 
+              variant="gradient"
+              useHover={true}
+            />
+            <div>
+              <p className="text-xs text-muted-foreground uppercase font-bold tracking-tighter">Classifiés</p>
+              <p className="text-2xl font-black">{filteredMovies.filter(m => m.classification).length}</p>
+            </div>
+          </div>
+        </ThemedCard>
       </div>
 
-      <div className={`rounded-lg border overflow-hidden ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+      {/* 2. FILTRES */}
+      <ThemedCard 
+        moduleName="films" 
+        className="p-4 flex flex-col md:flex-row gap-4"
+        hoverable={true}
+        useAdvancedHover={true}
+      >
+        <div className="flex-1">
+          <ThemedField
+            moduleName="films"
+            label="Recherche"
+            type="text"
+            placeholder="Rechercher un film par titre..."
+            value={searchTerm}
+            onChange={(value: string) => setSearchTerm(value)}
+            icon={Search}
+            useAdvancedFocus={true}
+            useModernBorder={true}
+          />
+        </div>
+        <div className="w-full md:w-[200px]">
+          <ThemedField
+            moduleName="films"
+            label="Genre"
+            type="select"
+            value={genreFilter}
+            onChange={(value: string) => setGenreFilter(value)}
+            options={[{ value: 'all', label: 'Tous les genres' }, ...(genres?.map(g => ({ value: g.nom, label: g.nom })) || [])]}
+            icon={Globe}
+            useAdvancedFocus={true}
+            useModernBorder={true}
+          />
+        </div>
+      </ThemedCard>
+
+      {/* 3. TABLEAU */}
+      <div className={`rounded-xl border ${isDarkMode ? 'border-gray-800 bg-gray-900' : 'bg-white shadow-sm overflow-hidden'}`}>
         <Table>
-          <TableHeader>
-            <TableRow className={isDarkMode ? 'border-gray-800 hover:bg-gray-800/50' : ''}>
-              <TableHead className={isDarkMode ? 'text-gray-300' : ''}>Affiche</TableHead>
-              <TableHead className={isDarkMode ? 'text-gray-300' : ''}>Titre</TableHead>
-              <TableHead className={isDarkMode ? 'text-gray-300' : ''}>Genre</TableHead>
-              <TableHead className={isDarkMode ? 'text-gray-300' : ''}>Réalisateur</TableHead>
-              <TableHead className={isDarkMode ? 'text-gray-300' : ''}>Année</TableHead>
-              <TableHead className={isDarkMode ? 'text-gray-300' : ''}>Note</TableHead>
-              <TableHead className={isDarkMode ? 'text-gray-300' : ''}>Actions</TableHead>
+          <TableHeader className={isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50'}>
+            <TableRow>
+              <TableHead className="w-[300px]">Film</TableHead>
+              <TableHead>Genre</TableHead>
+              <TableHead>Sortie</TableHead>
+              <TableHead>Classification</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredMovies.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
-                  <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
-                    Aucun film trouvé
-                  </p>
+            {paginatedMovies.length > 0 ? paginatedMovies.map((film) => (
+              <TableRow key={film.id} className={isDarkMode ? 'border-gray-800 hover:bg-gray-800/40' : 'hover:bg-gray-50/50'}>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-7 rounded bg-gray-200 overflow-hidden flex-shrink-0">
+                      {film.miniature ? <img src={film.miniature} alt="" className="h-full w-full object-cover" /> : <Film className="m-auto h-4 w-4 text-gray-400" />}
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm">{film.titre}</div>
+                      <div className="text-xs text-muted-foreground truncate max-w-[180px]">{film.realisateur || 'Sans réalisateur'}</div>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={isDarkMode ? 'border-gray-700 text-gray-300' : 'bg-gray-100'}>{film.genre}</Badge>
+                </TableCell>
+                <TableCell className="text-sm font-medium">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-3 w-3 text-gray-400" />
+                    {film.date_sortie ? new Date(film.date_sortie).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short' }) : 'N/A'}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge className={film.classification === 'tout-public' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}>
+                    {film.classification || 'TP'}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-1">
+                    <ThemedButton
+                      moduleName="films"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => navigate(`/admin/films/edit/${film.id}`)}
+                      className="h-8 w-8 p-0"
+                      useGradient={true}
+                      useHoverScale={true}
+                      useAdvancedShadow={true}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </ThemedButton>
+                    <ThemedButton
+                      moduleName="films"
+                      variant="error"
+                      size="sm"
+                      onClick={() => setDeleteId(film.id)}
+                      className="h-8 w-8 p-0"
+                      useGradient={true}
+                      useHoverScale={true}
+                      useAdvancedShadow={true}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </ThemedButton>
+                  </div>
                 </TableCell>
               </TableRow>
-            ) : (
-              filteredMovies.map((movie) => (
-                <TableRow 
-                  key={movie.id} 
-                  className={isDarkMode ? 'border-gray-800 hover:bg-gray-800/30' : 'hover:bg-gray-50'}
-                >
-                  <TableCell>
-                    <img 
-                      src={movie.thumbnail} 
-                      alt={movie.title}
-                      className="w-12 h-16 object-cover rounded"
-                    />
-                  </TableCell>
-                  <TableCell className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-                    {movie.title}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className={isDarkMode ? 'bg-blue-600/20 text-blue-400' : ''}>
-                      {movie.genre}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-                    {movie.director}
-                  </TableCell>
-                  <TableCell className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-                    {movie.releaseYear}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <span className={isDarkMode ? 'text-yellow-400' : 'text-yellow-600'}>★</span>
-                      <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-                        {movie.score ? movie.score.toFixed(1) : 'N/A'}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        className={isDarkMode ? 'hover:bg-gray-800 text-gray-400' : ''}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        className={isDarkMode ? 'hover:bg-gray-800 text-blue-400' : 'text-blue-600'}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => setDeleteId(movie.id)}
-                        className={isDarkMode ? 'hover:bg-gray-800 text-red-400' : 'text-red-600'}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+            )) : (
+              <TableRow>
+                <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">Aucun film ne correspond à votre recherche.</TableCell>
+              </TableRow>
             )}
           </TableBody>
         </Table>
+
+        {/* PAGINATION */}
+        {totalPages > 1 && (
+          <div className={`p-4 flex items-center justify-between border-t ${isDarkMode ? 'border-gray-800' : ''}`}>
+            <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Page {currentPage} sur {totalPages}</span>
+            <div className="flex gap-2">
+              <ThemedButton
+                moduleName="films"
+                variant="secondary"
+                size="sm"
+                onClick={() => setCurrentPage(prev => prev - 1)}
+                disabled={currentPage === 1}
+                useGradient={true}
+                useHoverScale={true}
+                useAdvancedShadow={true}
+              >
+                Précédent
+              </ThemedButton>
+              <ThemedButton
+                moduleName="films"
+                variant="secondary"
+                size="sm"
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                disabled={currentPage === totalPages}
+                useGradient={true}
+                useHoverScale={true}
+                useAdvancedShadow={true}
+              >
+                Suivant
+              </ThemedButton>
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* CONFIRMATION SUPPRESSION */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent className={isDarkMode ? 'bg-gray-900 border-gray-800' : ''}>
+        <AlertDialogContent className={isDarkMode ? 'bg-gray-900 border-gray-800 text-white' : ''}>
           <AlertDialogHeader>
-            <AlertDialogTitle className={isDarkMode ? 'text-white' : ''}>
-              Confirmer la suppression
-            </AlertDialogTitle>
-            <AlertDialogDescription className={isDarkMode ? 'text-gray-400' : ''}>
-              Êtes-vous sûr de vouloir supprimer ce film ? Cette action est irréversible.
+            <AlertDialogTitle>Supprimer définitivement ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action supprimera le film de la base de données et rendra le Playback ID Mux inutilisable sur Zoora.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className={isDarkMode ? 'bg-gray-800 text-white border-gray-700' : ''}>
+            <ThemedButton
+              moduleName="films"
+              variant="secondary"
+              onClick={() => setDeleteId(null)}
+              useGradient={true}
+              useHoverScale={true}
+              useAdvancedShadow={true}
+            >
               Annuler
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">
+            </ThemedButton>
+            <ThemedButton
+              moduleName="films"
+              variant="error"
+              onClick={handleDelete}
+              useGradient={true}
+              useHoverScale={true}
+              useAdvancedShadow={true}
+            >
               Supprimer
-            </AlertDialogAction>
+            </ThemedButton>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
   );
 }
+

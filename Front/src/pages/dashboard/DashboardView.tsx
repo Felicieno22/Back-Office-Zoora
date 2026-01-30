@@ -3,6 +3,19 @@ import { Button } from '../../components/ui/button';
 import { Film, Tv, Users, TrendingUp, Eye, Star, Download, FileText } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { exportToPDF } from '../../utils/exportPDF';
+import { apiRequest } from '../../utils/api';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+
+interface DashboardStats {
+  totalSeries: number;
+  totalSaisons: number;
+  totalEpisodes: number;
+  episodesReady: number;
+  episodesPreparing: number;
+  episodesError: number;
+  dureeTotaleContenuSecondes: number;
+}
 
 interface DashboardViewProps {
   isDarkMode: boolean;
@@ -11,6 +24,57 @@ interface DashboardViewProps {
 }
 
 export function DashboardView({ isDarkMode, movies, series }: DashboardViewProps) {
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        // Utiliser les données locales pour les statistiques
+        const data = {
+          totalSeries: series.length,
+          totalSaisons: series.reduce((acc, s) => acc + (s.saisons?.length || 0), 0),
+          totalEpisodes: series.reduce((acc, s) => acc + (s.saisons?.reduce((acc2, season) => acc2 + (season.episodes?.length || 0), 0) || 0), 0),
+          episodesReady: 0,
+          episodesPreparing: 0,
+          episodesError: 0,
+          dureeTotaleContenuSecondes: 0
+        };
+        setDashboardStats(data);
+      } catch (error) {
+        console.error('Failed to fetch dashboard stats:', error);
+        toast.error('Erreur lors de la récupération des statistiques');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchStats();
+  }, []);
+
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+    try {
+      const blob = await apiRequest('/api/series/dashboard/export/pdf', { method: 'GET' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Dashboard_Zoora_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Dashboard exporté avec succès');
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Erreur lors de l\'export PDF');
+      // Fallback to client-side export if server-side fails
+      exportToPDF('Dashboard ZOORA - Vue d\'ensemble', isDarkMode, 'dashboard-content');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // Mock data for charts
   const viewsData = [
     { name: 'Lun', films: 4000, series: 2400 },
@@ -42,23 +106,23 @@ export function DashboardView({ isDarkMode, movies, series }: DashboardViewProps
     },
     {
       title: 'Total Séries',
-      value: series.length,
+      value: dashboardStats?.totalSeries ?? series.length,
       icon: Tv,
       color: 'bg-purple-600',
       change: '+8.2%',
       trend: 'up'
     },
     {
-      title: 'Utilisateurs Actifs',
-      value: '45.2K',
-      icon: Users,
+      title: 'Total Épisodes',
+      value: dashboardStats?.totalEpisodes ?? '...',
+      icon: Star,
       color: 'bg-green-600',
-      change: '+23.1%',
+      change: `${dashboardStats?.episodesReady ?? 0} prêts`,
       trend: 'up'
     },
     {
-      title: 'Vues Totales',
-      value: '892K',
+      title: 'Durée Totale',
+      value: dashboardStats ? `${Math.round(dashboardStats.dureeTotaleContenuSecondes / 3600)}h` : '...',
       icon: Eye,
       color: 'bg-orange-600',
       change: '+15.3%',
@@ -85,21 +149,22 @@ export function DashboardView({ isDarkMode, movies, series }: DashboardViewProps
             Vue d'ensemble de votre plateforme ZOORA
           </p>
         </div>
-        
+
         {/* Export Button */}
         <Button
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white no-print"
-          onClick={() => exportToPDF('Dashboard ZOORA - Vue d\'ensemble', isDarkMode, 'dashboard-content')}
+          onClick={handleExportPDF}
+          disabled={isExporting}
         >
           <Download className="w-4 h-4" />
-          Exporter PDF
+          {isExporting ? 'Exportation...' : 'Exporter PDF'}
         </Button>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat, index) => (
-          <Card 
+          <Card
             key={index}
             className={`p-6 ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}
           >
@@ -133,12 +198,12 @@ export function DashboardView({ isDarkMode, movies, series }: DashboardViewProps
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={viewsData}>
               <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#e5e7eb'} />
-              <XAxis 
-                dataKey="name" 
+              <XAxis
+                dataKey="name"
                 stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
               />
               <YAxis stroke={isDarkMode ? '#9ca3af' : '#6b7280'} />
-              <Tooltip 
+              <Tooltip
                 contentStyle={{
                   backgroundColor: isDarkMode ? '#1f2937' : '#fff',
                   border: `1px solid ${isDarkMode ? '#374151' : '#e5e7eb'}`,
@@ -146,19 +211,19 @@ export function DashboardView({ isDarkMode, movies, series }: DashboardViewProps
                   color: isDarkMode ? '#fff' : '#000'
                 }}
               />
-              <Area 
-                type="monotone" 
-                dataKey="films" 
+              <Area
+                type="monotone"
+                dataKey="films"
                 stackId="1"
-                stroke="#3b82f6" 
+                stroke="#3b82f6"
                 fill="#3b82f6"
                 fillOpacity={0.6}
               />
-              <Area 
-                type="monotone" 
-                dataKey="series" 
+              <Area
+                type="monotone"
+                dataKey="series"
                 stackId="1"
-                stroke="#8b5cf6" 
+                stroke="#8b5cf6"
                 fill="#8b5cf6"
                 fillOpacity={0.6}
               />
@@ -173,12 +238,12 @@ export function DashboardView({ isDarkMode, movies, series }: DashboardViewProps
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={revenueData}>
               <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#e5e7eb'} />
-              <XAxis 
-                dataKey="month" 
+              <XAxis
+                dataKey="month"
                 stroke={isDarkMode ? '#9ca3af' : '#6b7280'}
               />
               <YAxis stroke={isDarkMode ? '#9ca3af' : '#6b7280'} />
-              <Tooltip 
+              <Tooltip
                 contentStyle={{
                   backgroundColor: isDarkMode ? '#1f2937' : '#fff',
                   border: `1px solid ${isDarkMode ? '#374151' : '#e5e7eb'}`,
@@ -199,15 +264,13 @@ export function DashboardView({ isDarkMode, movies, series }: DashboardViewProps
         </h3>
         <div className="space-y-3">
           {topContent.map((item, index) => (
-            <div 
+            <div
               key={index}
-              className={`flex items-center gap-4 p-4 rounded-lg ${
-                isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50'
-              }`}
+              className={`flex items-center gap-4 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50'
+                }`}
             >
-              <div className={`text-2xl w-10 text-center ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-500'
-              }`}>
+              <div className={`text-2xl w-10 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`}>
                 {index + 1}
               </div>
               <div className="flex-1">
@@ -243,31 +306,14 @@ export function DashboardView({ isDarkMode, movies, series }: DashboardViewProps
           Activité Récente
         </h3>
         <div className="space-y-4">
-          {[
-            { action: 'Nouveau film ajouté', item: 'The Last Journey', time: 'Il y a 2 heures', type: 'film' },
-            { action: 'Série mise à jour', item: 'Dark Mysteries', time: 'Il y a 4 heures', type: 'serie' },
-            { action: 'Utilisateur inscrit', item: 'John Doe', time: 'Il y a 6 heures', type: 'user' },
-            { action: 'Film validé', item: 'Comedy Night', time: 'Il y a 8 heures', type: 'validation' },
-          ].map((activity, index) => (
-            <div 
-              key={index}
-              className={`flex items-center justify-between p-3 rounded-lg ${
-                isDarkMode ? 'bg-gray-800/30' : 'bg-gray-50'
-              }`}
-            >
-              <div>
-                <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-                  {activity.action}
-                </p>
-                <p className={`text-sm ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
-                  {activity.item}
-                </p>
-              </div>
-              <span className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
-                {activity.time}
-              </span>
+          <p className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+            {dashboardStats ? "Données synchronisées avec le serveur." : "En attente de connexion avec le serveur..."}
+          </p>
+          {dashboardStats && (
+            <div className={`p-3 rounded-lg ${isDarkMode ? 'bg-gray-800/30' : 'bg-gray-50'}`}>
+              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>Dernière mise à jour : {new Date().toLocaleTimeString()}</p>
             </div>
-          ))}
+          )}
         </div>
       </Card>
     </div>

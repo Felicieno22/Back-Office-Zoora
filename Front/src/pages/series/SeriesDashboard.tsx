@@ -1,9 +1,10 @@
-import { Card } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
+import { ThemedCard } from '../../components/ui/ThemedCard';
+import { ThemedButton } from '../../components/ui/ThemedButton';
+import { ThemedIcon } from '../../components/ui/ThemedIcon';
 import { Tv, TrendingUp, Star, Clock, Download, PlayCircle } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { exportToPDF } from '../../utils/exportPDF';
-import { Serie } from '../../data/series';
+import { Serie } from '../../types/base';
 
 interface SeriesDashboardProps {
   isDarkMode: boolean;
@@ -86,21 +87,28 @@ export function SeriesDashboard({ isDarkMode, series }: SeriesDashboardProps) {
           </div>
         </div>
         
-        {/* Export Button */}
-        <Button
+        {/* Export ThemedButton */}
+        <ThemedButton
+          moduleName="series"
           onClick={() => exportToPDF('Dashboard Séries ZOORA', isDarkMode, 'series-dashboard-content')}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white no-print"
+          useGradient={true}
+          useHoverScale={true}
+          useAdvancedShadow={true}
         >
           <Download className="w-4 h-4" />
           Exporter PDF
-        </Button>
+        </ThemedButton>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat, index) => (
-          <Card 
+          <ThemedCard 
             key={index}
+            moduleName="series"
             className={`p-6 ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}
+            hoverable={true}
+            useAdvancedHover={true}
           >
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -118,12 +126,17 @@ export function SeriesDashboard({ isDarkMode, series }: SeriesDashboardProps) {
                 <stat.icon className="w-5 h-5 text-white" />
               </div>
             </div>
-          </Card>
+          </ThemedCard>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className={`p-6 ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+        <ThemedCard 
+          moduleName="series"
+          className={`p-6 ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}
+          hoverable={true}
+          useAdvancedHover={true}
+        >
           <h3 className={`mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             Séries par Statut
           </h3>
@@ -153,9 +166,14 @@ export function SeriesDashboard({ isDarkMode, series }: SeriesDashboardProps) {
               />
             </PieChart>
           </ResponsiveContainer>
-        </Card>
+        </ThemedCard>
 
-        <Card className={`p-6 ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+        <ThemedCard 
+          moduleName="series"
+          className={`p-6 ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}
+          hoverable={true}
+          useAdvancedHover={true}
+        >
           <h3 className={`mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             Séries par Genre (Top 6)
           </h3>
@@ -181,11 +199,16 @@ export function SeriesDashboard({ isDarkMode, series }: SeriesDashboardProps) {
               <Bar dataKey="value" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </Card>
+        </ThemedCard>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className={`p-6 ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+        <ThemedCard 
+          moduleName="series"
+          className={`p-6 ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}
+          hoverable={true}
+          useAdvancedHover={true}
+        >
           <h3 className={`mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             Top 5 Séries les mieux notées
           </h3>
@@ -195,7 +218,7 @@ export function SeriesDashboard({ isDarkMode, series }: SeriesDashboardProps) {
               .slice(0, 5)
               .map((serie, index) => (
                 <div 
-                  key={serie.id}
+                  key={`top-rated-${serie.id || index}`}
                   className={`flex items-center gap-4 p-3 rounded-lg ${
                     isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50'
                   }`}
@@ -227,9 +250,14 @@ export function SeriesDashboard({ isDarkMode, series }: SeriesDashboardProps) {
                 </div>
               ))}
           </div>
-        </Card>
+        </ThemedCard>
 
-        <Card className={`p-6 ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+        <ThemedCard 
+          moduleName="series"
+          className={`p-6 ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}
+          hoverable={true}
+          useAdvancedHover={true}
+        >
           <h3 className={`mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             Séries les plus longues
           </h3>
@@ -239,7 +267,7 @@ export function SeriesDashboard({ isDarkMode, series }: SeriesDashboardProps) {
               .slice(0, 5)
               .map((serie, index) => (
                 <div 
-                  key={serie.id}
+                  key={`longest-${serie.id || index}`}
                   className={`flex items-center gap-4 p-3 rounded-lg ${
                     isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50'
                   }`}
@@ -270,7 +298,7 @@ export function SeriesDashboard({ isDarkMode, series }: SeriesDashboardProps) {
                 </div>
               ))}
           </div>
-        </Card>
+        </ThemedCard>
       </div>
     </div>
   );

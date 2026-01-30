@@ -1,5 +1,6 @@
-import { Card } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
+import { ThemedCard } from '../../components/ui/ThemedCard';
+import { ThemedButton } from '../../components/ui/ThemedButton';
+import { ThemedIcon } from '../../components/ui/ThemedIcon';
 import { Film, TrendingUp, Star, Eye, Clock, Download } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { exportToPDF } from '../../utils/exportPDF';
@@ -99,20 +100,26 @@ export function FilmsDashboard({ isDarkMode, movies }: FilmsDashboardProps) {
         </div>
         
         {/* Export Button */}
-        <Button
+        <ThemedButton
+          moduleName="films"
           onClick={() => exportToPDF('Dashboard Films ZOORA', isDarkMode, 'films-dashboard-content')}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white no-print"
+          className="flex items-center gap-2 no-print"
+          useGradient={true}
+          useHoverScale={true}
+          useAdvancedShadow={true}
         >
           <Download className="w-4 h-4" />
           Exporter PDF
-        </Button>
+        </ThemedButton>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat, index) => (
-          <Card 
+          <ThemedCard 
             key={index}
-            className={`p-6 ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}
+            moduleName="films"
+            hoverable={true}
+            useAdvancedHover={true}
           >
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -130,12 +137,16 @@ export function FilmsDashboard({ isDarkMode, movies }: FilmsDashboardProps) {
                 <stat.icon className="w-5 h-5 text-white" />
               </div>
             </div>
-          </Card>
+          </ThemedCard>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className={`p-6 ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+        <ThemedCard 
+          moduleName="films"
+          hoverable={true}
+          useAdvancedHover={true}
+        >
           <h3 className={`mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             Films par Genre
           </h3>
@@ -165,9 +176,13 @@ export function FilmsDashboard({ isDarkMode, movies }: FilmsDashboardProps) {
               />
             </PieChart>
           </ResponsiveContainer>
-        </Card>
+        </ThemedCard>
 
-        <Card className={`p-6 ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+        <ThemedCard 
+          moduleName="films"
+          hoverable={true}
+          useAdvancedHover={true}
+        >
           <h3 className={`mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             Films par Année (5 dernières)
           </h3>
@@ -190,9 +205,14 @@ export function FilmsDashboard({ isDarkMode, movies }: FilmsDashboardProps) {
               <Bar dataKey="count" fill="#3b82f6" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </Card>
+        </ThemedCard>
 
-        <Card className={`p-6 lg:col-span-2 ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+        <ThemedCard 
+          moduleName="films"
+          className="lg:col-span-2"
+          hoverable={true}
+          useAdvancedHover={true}
+        >
           <h3 className={`mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             Distribution des Notes
           </h3>
@@ -221,10 +241,14 @@ export function FilmsDashboard({ isDarkMode, movies }: FilmsDashboardProps) {
               />
             </LineChart>
           </ResponsiveContainer>
-        </Card>
+        </ThemedCard>
       </div>
 
-      <Card className={`p-6 ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+      <ThemedCard 
+        moduleName="films"
+        hoverable={true}
+        useAdvancedHover={true}
+      >
         <h3 className={`mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
           Top 5 Films les mieux notés
         </h3>
@@ -266,7 +290,7 @@ export function FilmsDashboard({ isDarkMode, movies }: FilmsDashboardProps) {
               </div>
             ))}
         </div>
-      </Card>
+      </ThemedCard>
     </div>
   );
 }

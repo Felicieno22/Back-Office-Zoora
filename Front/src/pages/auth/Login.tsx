@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Film } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface LoginProps {
   onSwitchToRegister: () => void;
@@ -20,15 +20,26 @@ export function Login({ onSwitchToRegister }: LoginProps) {
     e.preventDefault();
     setIsLoading(true);
 
-    const success = await login(email, password);
-    
-    if (success) {
-      toast.success('Connexion réussie !');
-    } else {
-      toast.error('Email ou mot de passe incorrect');
+    try {
+      const result = await login(email, password);
+      
+      if (result.success) {
+        toast.success('Connexion réussie !');
+      } else if (result.requiresVerification && result.verificationToken) {
+        // Store token and redirect to verification
+        localStorage.setItem('verification_token', result.verificationToken);
+        localStorage.setItem('verification_email', email);
+        localStorage.setItem('verification_source', 'login');
+        toast.info('Compte non vérifié. Veuillez vérifier votre email pour le code.');
+        window.dispatchEvent(new CustomEvent('authViewChange', { detail: 'verify' }));
+      } else {
+        toast.error('Email ou mot de passe incorrect');
+      }
+    } catch (error) {
+      toast.error('Erreur de connexion');
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   return (
@@ -92,9 +103,9 @@ export function Login({ onSwitchToRegister }: LoginProps) {
           </div>
 
           <div className="mt-8 p-4 bg-slate-800/30 rounded-lg border border-slate-700">
-            <p className="text-xs text-slate-400 mb-2">Comptes de test :</p>
-            <p className="text-xs text-slate-300">Admin: admin@zoora.com / admin123</p>
-            <p className="text-xs text-slate-300">Modo: modo@zoora.com / modo123</p>
+            <p className="text-xs text-slate-400 mb-2">Pour tester :</p>
+            <p className="text-xs text-slate-300">Créez un compte ou utilisez un compte existant</p>
+            <p className="text-xs text-slate-500 mt-2">Note: Vérification email requise après inscription</p>
           </div>
         </div>
       </div>

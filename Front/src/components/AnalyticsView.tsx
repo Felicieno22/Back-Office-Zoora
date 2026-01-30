@@ -1,7 +1,10 @@
-import { TrendingUp, Eye, Clock, Star, Users, DollarSign, Film, Activity } from "lucide-react";
+import React from 'react';
+import { TrendingUp, Eye, Clock, Star, Users, DollarSign, Film, Activity, BarChart2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
+import { PageContainer, SectionCard } from './shared/SharedLayout';
+import { PageHeader } from './shared/PageHeader';
 
 interface AnalyticsViewProps {
   isDarkMode: boolean;
@@ -49,13 +52,13 @@ export function AnalyticsView({ isDarkMode }: AnalyticsViewProps) {
   const maxViews = Math.max(...viewingPeaks.map(d => d.views));
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className={isDarkMode ? 'text-white' : 'text-gray-900'}>Analyses Détaillées</h2>
-        <p className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
-          Statistiques complètes de la plateforme ZOORA
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Analyses Détaillées"
+        subtitle="Statistiques complètes de la plateforme ZOORA"
+        icon={BarChart2}
+        isDarkMode={isDarkMode}
+      />
 
       {/* Statistiques en temps réel */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -145,9 +148,8 @@ export function AnalyticsView({ isDarkMode }: AnalyticsViewProps) {
               {topMovies.map((movie, index) => (
                 <TableRow key={movie.id} className={isDarkMode ? 'border-gray-800' : 'border-gray-200'}>
                   <TableCell className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-                    <div className={`flex items-center justify-center w-8 h-8 rounded ${
-                      index < 3 ? 'bg-red-600 text-white' : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-200 text-gray-600'
-                    }`}>
+                    <div className={`flex items-center justify-center w-8 h-8 rounded ${index < 3 ? 'bg-red-600 text-white' : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-200 text-gray-600'
+                      }`}>
                       {index + 1}
                     </div>
                   </TableCell>
@@ -208,7 +210,7 @@ export function AnalyticsView({ isDarkMode }: AnalyticsViewProps) {
                     </div>
                   </div>
                   <div className={`w-full h-2 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-200'} rounded-full overflow-hidden`}>
-                    <div 
+                    <div
                       className="h-full bg-red-600 rounded-full transition-all"
                       style={{ width: `${stat.percentage}%` }}
                     />
@@ -234,7 +236,7 @@ export function AnalyticsView({ isDarkMode }: AnalyticsViewProps) {
                   <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     {(peak.views / 1000).toFixed(1)}K
                   </div>
-                  <div 
+                  <div
                     className="w-full bg-red-600 rounded-t transition-all hover:bg-red-500 relative group"
                     style={{ height: `${(peak.views / maxViews) * 100}%` }}
                   >
@@ -269,11 +271,11 @@ export function AnalyticsView({ isDarkMode }: AnalyticsViewProps) {
                   <span className="text-blue-500">{(item.users / 1000).toFixed(1)}K</span>
                 </div>
                 <div className="w-full flex flex-col gap-1">
-                  <div 
+                  <div
                     className="w-full bg-red-600 rounded-t transition-all hover:bg-red-500"
                     style={{ height: `${(item.revenue / maxRevenue) * 150}px` }}
                   />
-                  <div 
+                  <div
                     className="w-full bg-blue-900 rounded-t transition-all hover:bg-blue-800"
                     style={{ height: `${(item.users / 12300) * 100}px` }}
                   />
@@ -342,6 +344,6 @@ export function AnalyticsView({ isDarkMode }: AnalyticsViewProps) {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PageContainer>
   );
 }
